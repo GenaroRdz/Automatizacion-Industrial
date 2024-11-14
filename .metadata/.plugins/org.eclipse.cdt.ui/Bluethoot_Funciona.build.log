@@ -1,20 +1,10 @@
-21:12:37 **** Incremental Build of configuration Debug for project Bluethoot_Funciona ****
+12:17:24 **** Incremental Build of configuration Debug for project Bluethoot_Funciona ****
 make -j20 all 
-arm-none-eabi-gcc "../Core/Src/main.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32F411xE -c -I../Core/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I../Drivers/CMSIS/Include -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/main.d" -MT"Core/Src/main.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/main.o"
-arm-none-eabi-gcc -o "Bluethoot_Funciona.elf" @"objects.list"   -mcpu=cortex-m4 -T"C:\Users\Genar\STM32CubeIDE\workspace_1.16.1\Bluethoot\STM32F411CEUX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Bluethoot_Funciona.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
-Finished building target: Bluethoot_Funciona.elf
- 
 arm-none-eabi-size  Bluethoot_Funciona.elf 
-arm-none-eabi-objdump -h -S Bluethoot_Funciona.elf  > "Bluethoot_Funciona.list"
-arm-none-eabi-objcopy  -O ihex Bluethoot_Funciona.elf  "Bluethoot_Funciona.hex"
    text	   data	    bss	    dec	    hex	filename
-  18356	     16	   1792	  20164	   4ec4	Bluethoot_Funciona.elf
+  27484	    100	   2276	  29860	   74a4	Bluethoot_Funciona.elf
 Finished building: default.size.stdout
  
-Finished building: Bluethoot_Funciona.hex
- 
-Finished building: Bluethoot_Funciona.list
- 
 
-21:12:38 Build Finished. 0 errors, 0 warnings. (took 913ms)
+12:17:24 Build Finished. 0 errors, 0 warnings. (took 306ms)
 
