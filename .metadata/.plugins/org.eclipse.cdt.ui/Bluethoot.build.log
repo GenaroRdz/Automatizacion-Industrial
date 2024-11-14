@@ -1,0 +1,10 @@
+13:24:09 **** Incremental Build of configuration Debug for project Bluethoot ****
+make -j20 all 
+arm-none-eabi-size  Bluethoot.elf 
+   text	   data	    bss	    dec	    hex	filename
+  10360	     12	   1644	  12016	   2ef0	Bluethoot.elf
+Finished building: default.size.stdout
+ 
+
+13:24:10 Build Finished. 0 errors, 0 warnings. (took 297ms)
+

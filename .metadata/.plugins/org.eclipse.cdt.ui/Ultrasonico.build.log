@@ -1,0 +1,16 @@
+17:41:21 **** Incremental Build of configuration Debug for project Ultrasonico ****
+make -j20 all 
+arm-none-eabi-gcc -o "Ultrasonico.elf" @"objects.list"   -mcpu=cortex-m4 -T"C:\Users\Genar\STM32CubeIDE\workspace_1.16.1\Ultrasonico\STM32F411CEUX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Ultrasonico.map" -Wl,--gc-sections -static -u _printf_float --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Finished building target: Ultrasonico.elf
+ 
+arm-none-eabi-size  Ultrasonico.elf 
+arm-none-eabi-objdump -h -S Ultrasonico.elf  > "Ultrasonico.list"
+   text	   data	    bss	    dec	    hex	filename
+  45808	    708	   9132	  55648	   d960	Ultrasonico.elf
+Finished building: default.size.stdout
+ 
+Finished building: Ultrasonico.list
+ 
+
+17:41:21 Build Finished. 0 errors, 0 warnings. (took 723ms)
+

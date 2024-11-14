@@ -1,0 +1,19 @@
+11:52:08 **** Incremental Build of configuration Debug for project HC-05 ****
+make -j20 all 
+arm-none-eabi-gcc -o "HC-05.elf" @"objects.list"   -mcpu=cortex-m3 -T"C:\Users\Genar\STM32CubeIDE\workspace_1.16.1\HC-05\STM32F103C8TX_FLASH.ld" --specs=nosys.specs -Wl,-Map="HC-05.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Finished building target: HC-05.elf
+ 
+arm-none-eabi-size  HC-05.elf 
+arm-none-eabi-objdump -h -S HC-05.elf  > "HC-05.list"
+arm-none-eabi-objcopy  -O ihex HC-05.elf  "HC-05.hex"
+   text	   data	    bss	    dec	    hex	filename
+   8272	     12	   1644	   9928	   26c8	HC-05.elf
+Finished building: default.size.stdout
+ 
+Finished building: HC-05.list
+ 
+Finished building: HC-05.hex
+ 
+
+11:52:09 Build Finished. 0 errors, 0 warnings. (took 735ms)
+

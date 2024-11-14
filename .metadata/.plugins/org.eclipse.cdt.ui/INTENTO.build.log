@@ -1,0 +1,10 @@
+19:44:54 **** Incremental Build of configuration Debug for project INTENTO ****
+make -j20 all 
+arm-none-eabi-size  INTENTO.elf 
+   text	   data	    bss	    dec	    hex	filename
+  38644	    344	   9144	  48132	   bc04	INTENTO.elf
+Finished building: default.size.stdout
+ 
+
+19:44:54 Build Finished. 0 errors, 0 warnings. (took 382ms)
+
