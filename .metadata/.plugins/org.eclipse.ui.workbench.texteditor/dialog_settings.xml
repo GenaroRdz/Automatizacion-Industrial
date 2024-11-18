@@ -6,21 +6,23 @@
 		<item key="wholeword" value="false"/>
 		<item key="incremental" value="false"/>
 		<item key="isRegEx" value="false"/>
-		<item key="selection" value="atan2f"/>
+		<item key="selection" value="100"/>
 		<list key="findhistory">
+			<item value="HAL_MAX_DELAY"/>
 			<item value="atan2f"/>
 			<item value="x_offset"/>
 			<item value="&amp;hi2c1"/>
 		</list>
 		<list key="replacehistory">
+			<item value="100"/>
 			<item value="&amp;hi2c2"/>
 		</list>
 	</section>
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog_dialogBounds">
 		<item key="DIALOG_X_ORIGIN" value="1180"/>
 		<item key="DIALOG_Y_ORIGIN" value="356"/>
-		<item key="DIALOG_WIDTH" value="511"/>
-		<item key="DIALOG_HEIGHT" value="523"/>
-		<item key="DIALOG_FONT_NAME" value="1|Segoe UI|9.0|0|WINDOWS|1|-18|0|0|0|400|0|0|0|1|0|0|0|0|Segoe UI"/>
+		<item key="DIALOG_WIDTH" value="414"/>
+		<item key="DIALOG_HEIGHT" value="454"/>
+		<item key="DIALOG_FONT_NAME" value="1|Segoe UI|9.0|0|WINDOWS|1|-15|0|0|0|400|0|0|0|1|0|0|0|0|Segoe UI"/>
 	</section>
 </section>

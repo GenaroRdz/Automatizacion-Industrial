@@ -24,7 +24,8 @@
 /* USER CODE BEGIN Includes */
 #include "stdio.h"
 #include "usbd_cdc_if.h"
-
+#include "usb_device.h"
+#include "math.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -36,6 +37,9 @@
 /* USER CODE BEGIN PD */
 uint8_t QMC5883L_ADDR = 0x0D << 1;
 int16_t x_offset = 0, y_offset = 0; // Offset de calibración
+int16_t x, y, z;
+char buffer[64];
+float angulo;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -45,6 +49,8 @@ int16_t x_offset = 0, y_offset = 0; // Offset de calibración
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
+
+TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart2;
 
@@ -57,6 +63,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -75,16 +82,21 @@ void QMC5883L_Init() {
     HAL_I2C_Master_Transmit(&hi2c1, QMC5883L_ADDR, data, 2, HAL_MAX_DELAY);
 }
 // Función para leer los datos de los ejes X, Y, Z
-void QMC5883L_Read(int16_t *x, int16_t *y, int16_t *z) {
-	uint8_t data[6];
+void QMC5883L_Read(int16_t *x, int16_t *y, int16_t *z, float *angulo) {
+    uint8_t data[6];
     HAL_I2C_Mem_Read(&hi2c1, QMC5883L_ADDR, 0x00, I2C_MEMADD_SIZE_8BIT, data, 6, HAL_MAX_DELAY);
 
-    *x = (int16_t)((data[1] << 8) | data[0]);
-    *y = (int16_t)((data[3] << 8) | data[2]);
+    *x = (int16_t)((data[1] << 8) | data[0]) - x_offset;
+    *y = (int16_t)((data[3] << 8) | data[2]) - y_offset;
     *z = (int16_t)((data[5] << 8) | data[4]);
+
+    // Calcular el ángulo en grados
+    *angulo = atan2((float)*y, (float)*x) * (180.0 / M_PI);
+    if (*angulo < 0) {
+        *angulo += 360.0;  // Ajuste para obtener el ángulo en [0, 360] grados
+    }
 }
 void Calibrate_Sensor() {
-    int16_t x, y, z;
     int16_t x_min = 32767, x_max = -32768;
     int16_t y_min = 32767, y_max = -32768;
 
@@ -95,7 +107,7 @@ void Calibrate_Sensor() {
     HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
 
     while (HAL_GetTick() < calibration_duration) {
-        QMC5883L_Read(&x, &y, &z);
+        QMC5883L_Read(&x, &y, &z, NULL);
 
         if (x < x_min) x_min = x;
         if (x > x_max) x_max = x;
@@ -109,7 +121,7 @@ void Calibrate_Sensor() {
     x_offset = (x_max + x_min) / 2;
     y_offset = (y_max + y_min) / 2;
 
-    snprintf(buffer, sizeof(buffer), "Calibracion completa.\r\nOffsets - x: %d, y: %d\r\n", x_offset, y_offset);
+    snprintf(buffer, sizeof(buffer), "Calibracion completa.\r\n");
     HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
 }
 /* USER CODE END 0 */
@@ -146,11 +158,10 @@ int main(void)
   MX_I2C1_Init();
   MX_USB_DEVICE_Init();
   MX_USART2_UART_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
   QMC5883L_Init();
   Calibrate_Sensor(); // Llamar a la función de calibración al inicio
-  int16_t x, y, z;
-  char buffer[64];
 
   /* USER CODE END 2 */
 
@@ -159,16 +170,15 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-      QMC5883L_Read(&x, &y, &z);
+	int16_t x, y, z;
+	float angulo;
+	char buffer[64];
+	QMC5883L_Read(&x, &y, &z, &angulo);
 
-      // Aplicar la calibración (offset) a las lecturas
-      x -= x_offset;
-      y -= y_offset;
+	snprintf(buffer, sizeof(buffer), "x: %d, y: %d, z: %d, angulo: %.2f grados\r\n", x, y, z, angulo);
+	HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
 
-      snprintf(buffer, sizeof(buffer), "x: %d, y: %d, z: %d\r\n", x, y, z);
-      HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
-
-      HAL_Delay(500);
+	HAL_Delay(500);
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -250,6 +260,65 @@ static void MX_I2C1_Init(void)
   /* USER CODE BEGIN I2C1_Init 2 */
 
   /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 72-1;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 20000;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 500;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
+  HAL_TIM_MspPostInit(&htim3);
 
 }
 

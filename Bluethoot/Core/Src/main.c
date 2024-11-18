@@ -18,12 +18,14 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "usb_device.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "stdio.h"
 #include "string.h"
 #include "math.h"
+#include "usbd_cdc_if.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -35,6 +37,11 @@
 /* USER CODE BEGIN PD */
 uint8_t QMC5883L_ADDR = 0x0D << 1;
 int16_t x_offset = 0, y_offset = 0; // Offset de calibración
+int16_t x, y, z;
+char buffer[64];
+float angulo;
+#define MIN_PWM 330  // Ciclo de trabajo para -10°
+#define MAX_PWM 670  // Ciclo de trabajo para 10°
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -51,16 +58,14 @@ TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart1;
 
-
 /* USER CODE BEGIN PV */
 uint8_t rxData;
 int8_t rot = 0;     // Rango de -9 a 9, valor inicial 0
 float grad = 0.0;   // Puede tener valores decimales para PWM
 int lim_serv = 15;
-int16_t brujula,brujula_lect;
-int16_t x, y, z;
-char data_mag[50];
-
+// Variables del controlador proporcional
+float Kp = 2.0; // Ganancia proporcional
+float setpoint = 90; // Ángulo objetivo en grados
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -81,50 +86,40 @@ void QMC5883L_Init() {
     uint8_t data[2];
     data[0] = 0x0B; // Registro de configuración 2
     data[1] = 0x01; // Reinicio de software
-    HAL_I2C_Master_Transmit(&hi2c2, QMC5883L_ADDR, data, 2, HAL_MAX_DELAY);
+    HAL_I2C_Master_Transmit(&hi2c2, QMC5883L_ADDR, data, 2, 100);
 
     data[0] = 0x09; // Registro de control
     data[1] = 0x1D; // Configuración (ODR = 50Hz, RNG = 2G, OSR = 512)
-    HAL_I2C_Master_Transmit(&hi2c2, QMC5883L_ADDR, data, 2, HAL_MAX_DELAY);
+    HAL_I2C_Master_Transmit(&hi2c2, QMC5883L_ADDR, data, 2, 100);
 }
 // Función para leer los datos de los ejes X, Y, Z
-void QMC5883L_Read_SendB(int16_t *x, int16_t *y, int16_t *z) {
-	uint8_t data[6];
-    HAL_I2C_Mem_Read(&hi2c2, QMC5883L_ADDR, 0x00, I2C_MEMADD_SIZE_8BIT, data, 6, HAL_MAX_DELAY);
+void QMC5883L_Read(int16_t *x, int16_t *y, int16_t *z, float *angulo) {
+    uint8_t data[6];
+    HAL_I2C_Mem_Read(&hi2c2, QMC5883L_ADDR, 0x00, I2C_MEMADD_SIZE_8BIT, data, 6, 100);
 
-    *x = (int16_t)((data[1] << 8) | data[0]);
-    *y = (int16_t)((data[3] << 8) | data[2]);
+    *x = (int16_t)((data[1] << 8) | data[0]) - x_offset;
+    *y = (int16_t)((data[3] << 8) | data[2]) - y_offset;
     *z = (int16_t)((data[5] << 8) | data[4]);
-    brujula = atan2f(*y, *x) * 180 / 3.1416;
-    // Aplicar la calibración (offset) a las lecturas
-    x -= x_offset;
-    y -= y_offset;
 
-    if (brujula > 0) {
-        brujula_lect = brujula;
-    } else {
-        brujula_lect = brujula + 360;
+    // Calcular el ángulo en grados
+    *angulo = atan2((float)*y, (float)*x) * (180.0 / M_PI);
+    if (*angulo < 0) {
+        *angulo += 360.0;  // Ajuste para obtener el ángulo en [0, 360] grados
     }
-    uint32_t calibration_duration = HAL_GetTick() + 10000; // 10 segundos de calibración
-    if(HAL_GetTick() < calibration_duration){
-        sprintf(data_mag, "Calibrando......");
-        HAL_UART_Transmit(&huart1, (uint8_t*)data_mag, 50, 1000);
-    }
-    else{
-        // Formatea los datos en el buffer como una cadena
-        sprintf(data_mag, "X: %d, Y: %d, Z: %d, Brujula: %d, Lectura: %d\r\n",x, y, z, brujula, brujula_lect);
-        HAL_UART_Transmit(&huart1, (uint8_t*)data_mag, 50, 1000);
-    }
-
 }
 void Calibrate_Sensor() {
     int16_t x_min = 32767, x_max = -32768;
     int16_t y_min = 32767, y_max = -32768;
 
     uint32_t calibration_duration = HAL_GetTick() + 10000; // 10 segundos de calibración
+    char buffer[64];
+
+    snprintf(buffer, sizeof(buffer), "Calibrando... Gire el sensor 360 grados\r\n");
+    HAL_UART_Transmit(&huart1, (uint8_t*)buffer, strlen(buffer), 100);
+    CDC_Transmit_FS((uint8_t*)buffer, strlen(buffer));
 
     while (HAL_GetTick() < calibration_duration) {
-    	QMC5883L_Read_SendB(&x, &y, &z);
+    	QMC5883L_Read(&x, &y, &z, NULL);
 
         if (x < x_min) x_min = x;
         if (x > x_max) x_max = x;
@@ -137,6 +132,10 @@ void Calibrate_Sensor() {
     // Calcular los offsets para centrar en cero
     x_offset = (x_max + x_min) / 2;
     y_offset = (y_max + y_min) / 2;
+
+    snprintf(buffer, sizeof(buffer), "Calibracion completa.\r\n");
+    HAL_UART_Transmit(&huart1, (uint8_t*)buffer, strlen(buffer), 100);
+    CDC_Transmit_FS((uint8_t*)buffer, strlen(buffer));
 }
 // Función para configurar la dirección del motor
 void moveforward(){
@@ -149,7 +148,11 @@ void movebackward(){
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, 0);
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, 1);
 }
-
+void stop(){
+    // Dirección hacia adelante
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, 0);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, 0);
+}
 // Función para configurar la velocidad del motor (PWM)
 void Motor_SetSpeed(uint8_t speed) {
     if (speed > 100) speed = 100; // Limita el valor máximo a 100%
@@ -160,11 +163,41 @@ void Motor_SetSpeed(uint8_t speed) {
     // Establece el duty cycle
     __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, pulse);
 }
+// Función para mover el servo (ajusta con tu temporizador configurado)
+void mover_servo(uint32_t pwm_duty) {
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, pwm_duty);
+}
 
 void loop(){
-	QMC5883L_Read_SendB(&x, &y, &z);
+	int16_t x, y, z;
+	float angulo;
+	char buffer[64];
+	QMC5883L_Read(&x, &y, &z, &angulo);
 
-    HAL_Delay(500);
+	snprintf(buffer, sizeof(buffer), "angulo: %.2f grados\r\n", angulo);
+	HAL_UART_Transmit(&huart1, (uint8_t*)buffer, strlen(buffer), 100);
+	CDC_Transmit_FS((uint8_t*)buffer, strlen(buffer));
+
+	HAL_Delay(500);
+
+    // Leer ángulo del magnetómetro
+    float current_angle = angulo;
+
+    // Calcular error
+    float error = setpoint - current_angle;
+
+    // Calcular salida proporcional
+    float output = Kp * error;
+
+    // Limitar la salida al rango permitido (-10° a 10°)
+    if (output > 15) output = 15;
+    if (output < -15) output = -15;
+
+    // Convertir el ángulo a ciclo de trabajo del PWM
+    uint32_t pwm_duty = ((output + 15) / 30.0) * (MAX_PWM - MIN_PWM) + MIN_PWM;
+
+    // Controlar el servo
+    mover_servo(pwm_duty);
 
 }
 /* USER CODE END 0 */
@@ -202,12 +235,15 @@ int main(void)
   MX_ADC1_Init();
   MX_TIM2_Init();
   MX_I2C2_Init();
+  MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
   HAL_UART_Receive_IT(&huart1,&rxData,1); // Enabling interrupt receive
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
   // Inicializa el motor
-  moveforward();
+  htim2.Instance -> CCR1 = 500;
+  stop();
   QMC5883L_Init();
   Calibrate_Sensor(); // Llamar a la función de calibración al inicio
   /* USER CODE END 2 */
@@ -217,8 +253,7 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-	  QMC5883L_Read_SendB(&x, &y, &z);
-	  HAL_Delay(500);
+	  loop();
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -409,6 +444,11 @@ static void MX_TIM2_Init(void)
   }
   sConfigOC.Pulse = 0;
   if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.Pulse = 500;
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
   {
     Error_Handler();
   }
