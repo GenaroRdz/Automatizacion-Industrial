@@ -40,8 +40,13 @@ int16_t x_offset = 0, y_offset = 0; // Offset de calibración
 int16_t x, y, z;
 char buffer[64];
 float angulo;
-#define MIN_PWM 330  // Ciclo de trabajo para -10°
-#define MAX_PWM 670  // Ciclo de trabajo para 10°
+// Constantes del controlador
+#define Kp 2.0 // Ajusta este valor según sea necesario
+
+// Valores PWM del servo
+#define MIN_PWM 350
+#define CENTER_PWM 500
+#define MAX_PWM 650
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -62,10 +67,6 @@ UART_HandleTypeDef huart1;
 uint8_t rxData;
 int8_t rot = 0;     // Rango de -9 a 9, valor inicial 0
 float grad = 0.0;   // Puede tener valores decimales para PWM
-int lim_serv = 15;
-// Variables del controlador proporcional
-float Kp = 2.0; // Ganancia proporcional
-float setpoint = 90; // Ángulo objetivo en grados
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -163,11 +164,24 @@ void Motor_SetSpeed(uint8_t speed) {
     // Establece el duty cycle
     __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, pulse);
 }
-// Función para mover el servo (ajusta con tu temporizador configurado)
-void mover_servo(uint32_t pwm_duty) {
-    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, pwm_duty);
-}
+// Función para calcular y aplicar el control proporcional
+void ProportionalControl(float current_angle) {
+    // Calcula el error
+    float error = 90.0 - current_angle;
 
+    // Calcula el ajuste proporcional
+    float adjustment = Kp * error;
+
+    // Calcula el nuevo valor PWM
+    int pwm_value = CENTER_PWM + (int)adjustment;
+
+    // Limita el valor PWM al rango permitido
+    if (pwm_value < MIN_PWM) pwm_value = MIN_PWM;
+    if (pwm_value > MAX_PWM) pwm_value = MAX_PWM;
+
+    // Enviar el valor PWM al servo
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, pwm_value);
+}
 void loop(){
 	int16_t x, y, z;
 	float angulo;
@@ -179,26 +193,9 @@ void loop(){
 	CDC_Transmit_FS((uint8_t*)buffer, strlen(buffer));
 
 	HAL_Delay(500);
-
-    // Leer ángulo del magnetómetro
-    float current_angle = angulo;
-
-    // Calcular error
-    float error = setpoint - current_angle;
-
-    // Calcular salida proporcional
-    float output = Kp * error;
-
-    // Limitar la salida al rango permitido (-10° a 10°)
-    if (output > 15) output = 15;
-    if (output < -15) output = -15;
-
-    // Convertir el ángulo a ciclo de trabajo del PWM
-    uint32_t pwm_duty = ((output + 15) / 30.0) * (MAX_PWM - MIN_PWM) + MIN_PWM;
-
-    // Controlar el servo
-    mover_servo(pwm_duty);
-
+    float magnetometer_angle = angulo; // Implementa esta función para obtener el ángulo
+    ProportionalControl(magnetometer_angle);          // Ajusta el servo con el controlador proporcional
+    HAL_Delay(10); // Tiempo de actualización (10 ms)
 }
 /* USER CODE END 0 */
 
@@ -243,7 +240,6 @@ int main(void)
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
   // Inicializa el motor
   htim2.Instance -> CCR1 = 500;
-  stop();
   QMC5883L_Init();
   Calibrate_Sensor(); // Llamar a la función de calibración al inicio
   /* USER CODE END 2 */
@@ -253,7 +249,21 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-	  loop();
+	  moveforward();
+	  Motor_SetSpeed(100);
+		int16_t x, y, z;
+		float angulo;
+		char buffer[64];
+		QMC5883L_Read(&x, &y, &z, &angulo);
+
+		snprintf(buffer, sizeof(buffer), "angulo: %.2f grados\r\n", angulo);
+		HAL_UART_Transmit(&huart1, (uint8_t*)buffer, strlen(buffer), 100);
+		CDC_Transmit_FS((uint8_t*)buffer, strlen(buffer));
+
+		HAL_Delay(500);
+	    float magnetometer_angle = angulo; // Implementa esta función para obtener el ángulo
+	    ProportionalControl(magnetometer_angle);          // Ajusta el servo con el controlador proporcional
+	    HAL_Delay(10); // Tiempo de actualización (10 ms)
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -545,36 +555,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
         HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, 0);
 
     }
-    else if (rxData ==65) //Ascii value of "A" is 65 (A for Servo)
-    {
-    	// Este condicional sirve para aumentar un grado hasta el maximo de 9 grados en el servo
-    	if (rot > lim_serv){
-    		rot = lim_serv;
-    		grad = (rot + 45)/0.09;
-    		htim2.Instance -> CCR1 = grad; //10 grados
-    	}
-    	else {
-    		rot = rot + 1;
-    		grad = (rot + 45)/0.09;
-    		htim2.Instance -> CCR1 = grad; // aumenta 1
-    	}
 
-    }
-    else if (rxData ==66) //Ascii value of "B" is 65 (B for Servo)
-    {
-    	// Este condicional sirve para disminur un grado hasta el minimo de -9 grados en el servo
-    	if (rot < -lim_serv){
-    		rot = -lim_serv;
-    		grad = (rot + 45)/0.09;
-    		htim2.Instance -> CCR1 = grad; //10 grados
-    	}
-    	else {
-    		rot = rot - 1;
-    		grad = (rot + 45)/0.09;
-    		htim2.Instance -> CCR1 = grad; // aumenta 1
-    	}
-
-    }
     HAL_UART_Receive_IT(&huart1,&rxData,1); // Enabling interrupt receive again
   }
 }

@@ -1,10 +1,10 @@
-15:17:16 **** Incremental Build of configuration Debug for project Bluethoot_Funciona ****
+02:02:33 **** Incremental Build of configuration Debug for project Bluethoot_Funciona ****
 make -j20 all 
 arm-none-eabi-size  Bluethoot_Funciona.elf 
    text	   data	    bss	    dec	    hex	filename
-  60880	    724	   9364	  70968	  11538	Bluethoot_Funciona.elf
+  60368	    712	   9360	  70440	  11328	Bluethoot_Funciona.elf
 Finished building: default.size.stdout
  
 
-15:17:16 Build Finished. 0 errors, 0 warnings. (took 251ms)
+02:02:34 Build Finished. 0 errors, 0 warnings. (took 535ms)
 
