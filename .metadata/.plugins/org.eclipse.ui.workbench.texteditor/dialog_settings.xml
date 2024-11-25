@@ -6,8 +6,18 @@
 		<item key="wholeword" value="false"/>
 		<item key="incremental" value="false"/>
 		<item key="isRegEx" value="false"/>
-		<item key="selection" value="100"/>
+		<item key="selection" value="CDC"/>
 		<list key="findhistory">
+			<item value="CDC"/>
+			<item value="TIM_CHANNEL_3"/>
+			<item value="TIM_CHANNEL_1"/>
+			<item value="current_angle"/>
+			<item value="TIM_CHANNEL_2"/>
+			<item value="stop"/>
+			<item value="M_PI"/>
+			<item value="MPI"/>
+			<item value="pi"/>
+			<item value="TIM3_Init"/>
 			<item value="HAL_MAX_DELAY"/>
 			<item value="atan2f"/>
 			<item value="x_offset"/>

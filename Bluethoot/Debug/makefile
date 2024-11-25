@@ -59,6 +59,9 @@ Bluethoot_Funciona.list \
 OBJCOPY_HEX += \
 Bluethoot_Funciona.hex \
 
+OBJCOPY_BIN += \
+Bluethoot_Funciona.bin \
+
 
 # All Target
 all: main-build
@@ -87,12 +90,17 @@ Bluethoot_Funciona.hex: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEP
 	@echo 'Finished building: $@'
 	@echo ' '
 
+Bluethoot_Funciona.bin: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-objcopy  -O binary $(EXECUTABLES) "Bluethoot_Funciona.bin"
+	@echo 'Finished building: $@'
+	@echo ' '
+
 # Other Targets
 clean:
-	-$(RM) Bluethoot_Funciona.elf Bluethoot_Funciona.hex Bluethoot_Funciona.list Bluethoot_Funciona.map default.size.stdout
+	-$(RM) Bluethoot_Funciona.bin Bluethoot_Funciona.elf Bluethoot_Funciona.hex Bluethoot_Funciona.list Bluethoot_Funciona.map default.size.stdout
 	-@echo ' '
 
-secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST) $(OBJCOPY_HEX)
+secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST) $(OBJCOPY_HEX) $(OBJCOPY_BIN)
 
 fail-specified-linker-script-missing:
 	@echo 'Error: Cannot find the specified linker script. Check the linker settings in the build configuration.'
