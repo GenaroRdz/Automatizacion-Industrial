@@ -1,10 +1,10 @@
-18:59:30 **** Incremental Build of configuration Debug for project Bluethoot_Funciona ****
+22:57:38 **** Incremental Build of configuration Debug for project Bluethoot_Funciona ****
 make -j20 all 
 arm-none-eabi-gcc "../Core/Src/main.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32F411xE -c -I../Core/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I../Drivers/CMSIS/Include -I../USB_DEVICE/App -I../USB_DEVICE/Target -I../Middlewares/ST/STM32_USB_Device_Library/Core/Inc -I../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/main.d" -MT"Core/Src/main.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/main.o"
 ../Core/Src/main.c: In function 'main':
-../Core/Src/main.c:289:32: warning: unused variable 'last_timer' [-Wunused-variable]
-  289 |         int16_t timer_counter, last_timer;
-      |                                ^~~~~~~~~~
+../Core/Src/main.c:258:8: warning: unused variable 'buffer' [-Wunused-variable]
+  258 |   char buffer[64];
+      |        ^~~~~~
 arm-none-eabi-gcc -o "Bluethoot_Funciona.elf" @"objects.list"   -mcpu=cortex-m4 -T"C:\Users\Genar\STM32CubeIDE\workspace_1.16.1\Bluethoot\STM32F411CEUX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Bluethoot_Funciona.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
 Finished building target: Bluethoot_Funciona.elf
  
@@ -12,16 +12,16 @@ arm-none-eabi-size  Bluethoot_Funciona.elf
 arm-none-eabi-objdump -h -S Bluethoot_Funciona.elf  > "Bluethoot_Funciona.list"
 arm-none-eabi-objcopy  -O ihex Bluethoot_Funciona.elf  "Bluethoot_Funciona.hex"
    text	   data	    bss	    dec	    hex	filename
-  61256	    712	   9448	  71416	  116f8	Bluethoot_Funciona.elf
+  59600	    708	   9364	  69672	  11028	Bluethoot_Funciona.elf
 arm-none-eabi-objcopy  -O binary Bluethoot_Funciona.elf  "Bluethoot_Funciona.bin"
 Finished building: default.size.stdout
  
 Finished building: Bluethoot_Funciona.hex
- 
 Finished building: Bluethoot_Funciona.bin
+ 
  
 Finished building: Bluethoot_Funciona.list
  
 
-18:59:31 Build Finished. 0 errors, 1 warnings. (took 756ms)
+22:57:40 Build Finished. 0 errors, 1 warnings. (took 1s.561ms)
 

@@ -1,10 +1,10 @@
-16:09:20 **** Incremental Build of configuration Debug for project Magnetrometro ****
+22:01:59 **** Incremental Build of configuration Debug for project Magnetrometro ****
 make -j20 all 
 arm-none-eabi-size  Magnetrometro.elf 
    text	   data	    bss	    dec	    hex	filename
-  62104	    712	   9288	  72104	  119a8	Magnetrometro.elf
+  62136	    712	   9288	  72136	  119c8	Magnetrometro.elf
 Finished building: default.size.stdout
  
 
-16:09:21 Build Finished. 0 errors, 0 warnings. (took 256ms)
+22:01:59 Build Finished. 0 errors, 0 warnings. (took 252ms)
 

@@ -6,8 +6,10 @@
 		<item key="wholeword" value="false"/>
 		<item key="incremental" value="false"/>
 		<item key="isRegEx" value="false"/>
-		<item key="selection" value="CDC"/>
+		<item key="selection" value="hi2c2"/>
 		<list key="findhistory">
+			<item value="hi2c1"/>
+			<item value="__HAL_RCC_TIM2_CLK_ENABLE();"/>
 			<item value="CDC"/>
 			<item value="TIM_CHANNEL_3"/>
 			<item value="TIM_CHANNEL_1"/>
@@ -21,9 +23,9 @@
 			<item value="HAL_MAX_DELAY"/>
 			<item value="atan2f"/>
 			<item value="x_offset"/>
-			<item value="&amp;hi2c1"/>
 		</list>
 		<list key="replacehistory">
+			<item value="hi2c2"/>
 			<item value="100"/>
 			<item value="&amp;hi2c2"/>
 		</list>

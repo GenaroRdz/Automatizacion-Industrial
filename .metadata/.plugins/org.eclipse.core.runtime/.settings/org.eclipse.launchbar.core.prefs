@@ -1,12 +1,13 @@
 LaunchTargetManager/org.eclipse.launchbar.core.launchTargetType.local,Local/arch=x86_64
 LaunchTargetManager/org.eclipse.launchbar.core.launchTargetType.local,Local/name=Local
 LaunchTargetManager/org.eclipse.launchbar.core.launchTargetType.local,Local/os=win32
-configDescList=org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:Bluethoot Debug,org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:MPU6050 Debug,org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:Magnetrometro Debug,org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:Servo-Motor Debug,org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:Encoder Debug,org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:Bluethoot_Funciona Debug
+configDescList=org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:Bluethoot Debug,org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:MPU6050 Debug,org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:Servo-Motor Debug,org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:Encoder Debug,org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:Timer Debug,org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:Magnetrometro Debug,org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:Bluethoot_Funciona Debug,org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:Final Debug
 eclipse.preferences.version=1
 org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:Bluethoot\ Debug/activeLaunchMode=run
 org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:Bluethoot\ Debug/activeLaunchTarget=null\:---
-org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:Bluethoot_Funciona\ Debug/activeLaunchMode=run
+org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:Bluethoot_Funciona\ Debug/activeLaunchMode=debug
 org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:Encoder\ Debug/activeLaunchMode=run
+org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:Final\ Debug/activeLaunchMode=run
 org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:HC-05/activeLaunchMode=run
 org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:HC-05/activeLaunchTarget=null\:---
 org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:HM-10\ Debug/activeLaunchMode=run
@@ -14,3 +15,4 @@ org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:HM-10\ Debug/activeLaunchTarget
 org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:INTENTO\ Debug/activeLaunchMode=debug
 org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:MPU6050\ Debug/activeLaunchMode=run
 org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:Magnetrometro\ Debug/activeLaunchMode=run
+org.eclipse.cdt.dsf.gdb.gdbRemotedescriptorType\:Timer\ Debug/activeLaunchMode=run

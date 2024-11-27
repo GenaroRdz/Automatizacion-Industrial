@@ -22,21 +22,31 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "stdio.h"
-#include "string.h"
-#include "math.h"
-#include "usbd_cdc_if.h"
-#include<stdbool.h>// Booleanos
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
+#include <stdbool.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+#define QMC5883L_ADDR        (0x0D << 1)
+#define Kp                   2
+#define Ki                   0.01
+#define MIN_PWM              350
+#define CENTER_PWM           500
+#define MAX_PWM              650
+#define MAX_SPEED            100
+#define MIN_SPEED            0
+#define CALIBRATION_TIME     10000 // ms
+#define ENCODER_PPR          673
+#define TIMER_PERIOD         65535
+#define PWM_0DEGREES   	     1000  // 1 ms para 0°
+#define PWM_180DEGREES 		 2000  // 2 ms para 180°
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-uint8_t QMC5883L_ADDR = 0x0D << 1;
 int16_t x_offset = 0, y_offset = 0; // Offset de calibración
 int16_t x, y, z;
 uint8_t vel=0;
@@ -48,16 +58,6 @@ float angulo;
 // Variables globales para el control integral
 float integral_sum = 0.0; // Acumulador del término integral
 float previous_time = 0.0; // Tiempo previo para cálculo de la integración
-// Constantes del controlador
-#define Kp 2.0 // Constante proporcional
-#define Ki 0.1 // Constante integral
-
-// Valores PWM del servo
-#define MIN_PWM 350
-#define CENTER_PWM 500
-#define MAX_PWM 650
-#define ENCODER_PPR 673 // Pulsos por revolución del encoder
-#define TIMER_PERIOD 65535 // Rango máximo del contador del timer
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -70,7 +70,6 @@ I2C_HandleTypeDef hi2c2;
 
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
-TIM_HandleTypeDef htim4;
 
 UART_HandleTypeDef huart1;
 
@@ -94,28 +93,26 @@ static void MX_USART1_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_TIM3_Init(void);
-static void MX_TIM4_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-// Función para inicializar el sensor QMC5883L
 void QMC5883L_Init() {
     uint8_t data[2];
     data[0] = 0x0B; // Registro de configuración 2
     data[1] = 0x01; // Reinicio de software
-    HAL_I2C_Master_Transmit(&hi2c2, QMC5883L_ADDR, data, 2, 100);
+    HAL_I2C_Master_Transmit(&hi2c2, QMC5883L_ADDR, data, 2, HAL_MAX_DELAY);
 
     data[0] = 0x09; // Registro de control
     data[1] = 0x1D; // Configuración (ODR = 50Hz, RNG = 2G, OSR = 512)
-    HAL_I2C_Master_Transmit(&hi2c2, QMC5883L_ADDR, data, 2, 100);
+    HAL_I2C_Master_Transmit(&hi2c2, QMC5883L_ADDR, data, 2, HAL_MAX_DELAY);
 }
 // Función para leer los datos de los ejes X, Y, Z
 void QMC5883L_Read(int16_t *x, int16_t *y, int16_t *z, float *angulo) {
     uint8_t data[6];
-    HAL_I2C_Mem_Read(&hi2c2, QMC5883L_ADDR, 0x00, I2C_MEMADD_SIZE_8BIT, data, 6, 100);
+    HAL_I2C_Mem_Read(&hi2c2, QMC5883L_ADDR, 0x00, I2C_MEMADD_SIZE_8BIT, data, 6, HAL_MAX_DELAY);
 
     *x = (int16_t)((data[1] << 8) | data[0]) - x_offset;
     *y = (int16_t)((data[3] << 8) | data[2]) - y_offset;
@@ -135,9 +132,11 @@ void Calibrate_Sensor() {
     char buffer[64];
 
     snprintf(buffer, sizeof(buffer), "Calibrando... Gire el sensor 360 grados\r\n");
-    HAL_UART_Transmit(&huart1, (uint8_t*)buffer, strlen(buffer), 100);
+    HAL_UART_Transmit(&huart1, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
+
     while (HAL_GetTick() < calibration_duration) {
-    	QMC5883L_Read(&x, &y, &z, NULL);
+        QMC5883L_Read(&x, &y, &z, NULL);
+
         if (x < x_min) x_min = x;
         if (x > x_max) x_max = x;
         if (y < y_min) y_min = y;
@@ -145,22 +144,19 @@ void Calibrate_Sensor() {
 
         HAL_Delay(100); // Esperar antes de la siguiente lectura
     }
+
     // Calcular los offsets para centrar en cero
     x_offset = (x_max + x_min) / 2;
     y_offset = (y_max + y_min) / 2;
 
     snprintf(buffer, sizeof(buffer), "Calibracion completa.\r\n");
-    HAL_UART_Transmit(&huart1, (uint8_t*)buffer, strlen(buffer), 100);
-    CDC_Transmit_FS((uint8_t*)buffer, strlen(buffer));
+    HAL_UART_Transmit(&huart1, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
 }
-// Función para configurar la dirección del motor
-void moveforward(){
-    // Dirección hacia adelante
+void Motor_forward() {
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, 1);
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, 0);
 }
-void movebackward(){
-    // Dirección hacia adelante
+void Motor_backward() {
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, 0);
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, 1);
 }
@@ -199,7 +195,7 @@ void PIControl(float current_angle, float set_point) {
     integral_sum += error * dt;
 
     // Calcula el ajuste PI
-    float adjustment = (Kp * error) + (Ki * integral_sum);
+    float adjustment = (Kp * error);
 
     // Calcula el nuevo valor PWM
     int pwm_value = CENTER_PWM + (int)adjustment;
@@ -210,13 +206,6 @@ void PIControl(float current_angle, float set_point) {
 
     // Enviar el valor PWM al servo
     __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, pwm_value);
-}
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-    if (htim->Instance == TIM4) { // Asegúrate de que sea el temporizador configurado
-    	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13); // Ejemplo: Alternar un LED
-    	QMC5883L_Read(&x, &y, &z, &angulo);
-    	PIControl(angulo, set_point);
-    }
 }
 /* USER CODE END 0 */
 
@@ -254,31 +243,28 @@ int main(void)
   MX_I2C2_Init();
   MX_USB_DEVICE_Init();
   MX_TIM3_Init();
-  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, 0);
   HAL_UART_Receive_IT(&huart1,&rxData,1); // Enabling interrupt receive
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1); // Servo motor
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2); // Velocidad de motor
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3); // Posible nuevo motor
   HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
     // Inicializa el motor
   htim2.Instance -> CCR1 = 500;
   QMC5883L_Init();
   Calibrate_Sensor(); // Llamar a la función de calibración al inicio
   int16_t x, y, z;
-  float angulo;
+  float angle;
+  char buffer[64];
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, 0);
   HAL_Delay(3000);
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, 1);
   HAL_Delay(5000);
-  moveforward();
-  Motor_SetSpeed(20);
-  moveforward();
-  QMC5883L_Read(&x, &y, &z, &angulo);
-  set_point = angulo;
-  //HAL_TIM_Base_Start_IT(&htim4); // Inicia el Timer con interrupción habilitada
-
+  Motor_forward();
+  Motor_SetSpeed(30);
+  QMC5883L_Read(&x, &y, &z, &angle);
+  set_point = angle;
+  //HAL_TIM_Base_Start_IT(&htim4); // Inicia TIM4 con interrupciones
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -286,18 +272,7 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-	int16_t timer_counter, last_timer;
-  	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13); // Ejemplo: Alternar un LED
-  	QMC5883L_Read(&x, &y, &z, &angulo);
-  	PIControl(angulo, set_point);
-	timer_counter = __HAL_TIM_GET_COUNTER(&htim3);
-	if( timer_counter >= 0 && timer_counter < 45885){
-		Motor_SetSpeed(20);
-		moveforward();
-	}
-	else{
-		stop();
-	}
+
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -439,11 +414,6 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
-  sConfigOC.Pulse = 500;
-  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
-  {
-    Error_Handler();
-  }
   /* USER CODE BEGIN TIM2_Init 2 */
 
   /* USER CODE END TIM2_Init 2 */
@@ -501,51 +471,6 @@ static void MX_TIM3_Init(void)
 }
 
 /**
-  * @brief TIM4 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM4_Init(void)
-{
-
-  /* USER CODE BEGIN TIM4_Init 0 */
-
-  /* USER CODE END TIM4_Init 0 */
-
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-
-  /* USER CODE BEGIN TIM4_Init 1 */
-
-  /* USER CODE END TIM4_Init 1 */
-  htim4.Instance = TIM4;
-  htim4.Init.Prescaler = 720;
-  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim4.Init.Period = 10000;
-  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim4, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM4_Init 2 */
-
-  /* USER CODE END TIM4_Init 2 */
-
-}
-
-/**
   * @brief USART1 Initialization Function
   * @param None
   * @retval None
@@ -599,6 +524,9 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12|GPIO_PIN_4|GPIO_PIN_5, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : PC13 */
@@ -607,6 +535,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PA5 */
+  GPIO_InitStruct.Pin = GPIO_PIN_5;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PB12 PB4 PB5 */
   GPIO_InitStruct.Pin = GPIO_PIN_12|GPIO_PIN_4|GPIO_PIN_5;

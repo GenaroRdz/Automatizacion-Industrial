@@ -48,7 +48,7 @@ float angulo;
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-I2C_HandleTypeDef hi2c1;
+I2C_HandleTypeDef hi2c2;
 
 TIM_HandleTypeDef htim3;
 
@@ -61,9 +61,9 @@ UART_HandleTypeDef huart2;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_I2C1_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM3_Init(void);
+static void MX_I2C2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -75,16 +75,16 @@ void QMC5883L_Init() {
     uint8_t data[2];
     data[0] = 0x0B; // Registro de configuración 2
     data[1] = 0x01; // Reinicio de software
-    HAL_I2C_Master_Transmit(&hi2c1, QMC5883L_ADDR, data, 2, HAL_MAX_DELAY);
+    HAL_I2C_Master_Transmit(&hi2c2, QMC5883L_ADDR, data, 2, HAL_MAX_DELAY);
 
     data[0] = 0x09; // Registro de control
     data[1] = 0x1D; // Configuración (ODR = 50Hz, RNG = 2G, OSR = 512)
-    HAL_I2C_Master_Transmit(&hi2c1, QMC5883L_ADDR, data, 2, HAL_MAX_DELAY);
+    HAL_I2C_Master_Transmit(&hi2c2, QMC5883L_ADDR, data, 2, HAL_MAX_DELAY);
 }
 // Función para leer los datos de los ejes X, Y, Z
 void QMC5883L_Read(int16_t *x, int16_t *y, int16_t *z, float *angulo) {
     uint8_t data[6];
-    HAL_I2C_Mem_Read(&hi2c1, QMC5883L_ADDR, 0x00, I2C_MEMADD_SIZE_8BIT, data, 6, HAL_MAX_DELAY);
+    HAL_I2C_Mem_Read(&hi2c2, QMC5883L_ADDR, 0x00, I2C_MEMADD_SIZE_8BIT, data, 6, HAL_MAX_DELAY);
 
     *x = (int16_t)((data[1] << 8) | data[0]) - x_offset;
     *y = (int16_t)((data[3] << 8) | data[2]) - y_offset;
@@ -155,10 +155,10 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_I2C1_Init();
   MX_USB_DEVICE_Init();
   MX_USART2_UART_Init();
   MX_TIM3_Init();
+  MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
   QMC5883L_Init();
   Calibrate_Sensor(); // Llamar a la función de calibración al inicio
@@ -170,15 +170,15 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-	int16_t x, y, z;
-	float angulo;
-	char buffer[64];
-	QMC5883L_Read(&x, &y, &z, &angulo);
+		int16_t x, y, z;
+		float angulo;
+		char buffer[64];
+		QMC5883L_Read(&x, &y, &z, &angulo);
 
-	snprintf(buffer, sizeof(buffer), "x: %d, y: %d, z: %d, angulo: %.2f grados\r\n", x, y, z, angulo);
-	HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
+		snprintf(buffer, sizeof(buffer), "x: %d, y: %d, z: %d, angulo: %.2f grados\r\n", x, y, z, angulo);
+		HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
 
-	HAL_Delay(500);
+		HAL_Delay(500);
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -230,36 +230,36 @@ void SystemClock_Config(void)
 }
 
 /**
-  * @brief I2C1 Initialization Function
+  * @brief I2C2 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_I2C1_Init(void)
+static void MX_I2C2_Init(void)
 {
 
-  /* USER CODE BEGIN I2C1_Init 0 */
+  /* USER CODE BEGIN I2C2_Init 0 */
 
-  /* USER CODE END I2C1_Init 0 */
+  /* USER CODE END I2C2_Init 0 */
 
-  /* USER CODE BEGIN I2C1_Init 1 */
+  /* USER CODE BEGIN I2C2_Init 1 */
 
-  /* USER CODE END I2C1_Init 1 */
-  hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = 100000;
-  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
-  hi2c1.Init.OwnAddress1 = 0;
-  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c1.Init.OwnAddress2 = 0;
-  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  /* USER CODE END I2C2_Init 1 */
+  hi2c2.Instance = I2C2;
+  hi2c2.Init.ClockSpeed = 100000;
+  hi2c2.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c2.Init.OwnAddress1 = 0;
+  hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c2.Init.OwnAddress2 = 0;
+  hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c2) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN I2C1_Init 2 */
+  /* USER CODE BEGIN I2C2_Init 2 */
 
-  /* USER CODE END I2C1_Init 2 */
+  /* USER CODE END I2C2_Init 2 */
 
 }
 
