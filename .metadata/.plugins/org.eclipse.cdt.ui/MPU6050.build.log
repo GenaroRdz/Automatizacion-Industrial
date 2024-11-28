@@ -1,10 +1,35 @@
-14:45:48 **** Incremental Build of configuration Debug for project MPU6050 ****
+18:26:28 **** Incremental Build of configuration Debug for project MPU6050 ****
 make -j20 all 
+arm-none-eabi-gcc "../Core/Src/main.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32F411xE -c -I../Core/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I../Drivers/CMSIS/Include -I../USB_DEVICE/App -I../USB_DEVICE/Target -I../Middlewares/ST/STM32_USB_Device_Library/Core/Inc -I../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/main.d" -MT"Core/Src/main.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/main.o"
+../Core/Src/main.c: In function 'CalibrateGyro':
+../Core/Src/main.c:135:5: warning: implicit declaration of function 'Send_Data_USB' [-Wimplicit-function-declaration]
+  135 |     Send_Data_USB(buffer);
+      |     ^~~~~~~~~~~~~
+../Core/Src/main.c: At top level:
+../Core/Src/main.c:137:6: warning: conflicting types for 'Send_Data_USB'; have 'void(const char *)'
+  137 | void Send_Data_USB(const char *data) {
+      |      ^~~~~~~~~~~~~
+../Core/Src/main.c:135:5: note: previous implicit declaration of 'Send_Data_USB' with type 'void(const char *)'
+  135 |     Send_Data_USB(buffer);
+      |     ^~~~~~~~~~~~~
+../Core/Src/main.c: In function 'main':
+../Core/Src/main.c:196:27: warning: 'gyro_bias' is used uninitialized [-Wuninitialized]
+  196 |       gyro[0] -= gyro_bias[0]; // Usamos solo el eje X para el giro en este caso
+      |                  ~~~~~~~~~^~~
+../Core/Src/main.c:177:30: note: 'gyro_bias' declared here
+  177 |   int16_t accel[3], gyro[3], gyro_bias[3];
+      |                              ^~~~~~~~~
+arm-none-eabi-gcc -o "MPU6050.elf" @"objects.list"   -mcpu=cortex-m4 -T"C:\Users\Genar\STM32CubeIDE\workspace_1.16.1\MPU6050\STM32F411CEUX_FLASH.ld" --specs=nosys.specs -Wl,-Map="MPU6050.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
+Finished building target: MPU6050.elf
+ 
 arm-none-eabi-size  MPU6050.elf 
+arm-none-eabi-objdump -h -S MPU6050.elf  > "MPU6050.list"
    text	   data	    bss	    dec	    hex	filename
-  35372	    332	   9124	  44828	   af1c	MPU6050.elf
+  49864	    708	   9132	  59704	   e938	MPU6050.elf
 Finished building: default.size.stdout
  
+Finished building: MPU6050.list
+ 
 
-14:45:48 Build Finished. 0 errors, 0 warnings. (took 408ms)
+18:26:29 Build Finished. 0 errors, 3 warnings. (took 1s.183ms)
 

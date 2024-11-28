@@ -18,18 +18,21 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "usb_device.h"
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
-#include "usbd_cdc_if.h"
+#include <math.h>
+#include <usbd_cdc_if.h>
 
 #define MPU6050_ADDR 0x68 << 1  // Dirección I2C del MPU6050
-#define WHO_AM_I_REG 0x75
-#define PWR_MGMT_1   0x6B
-#define ACCEL_XOUT_H 0x3B
-#define GYRO_XOUT_H  0x43
+#define WHO_AM_I_REG 0x75       // Registro de identificación del MPU6050
+#define PWR_MGMT_1_REG 0x6B     // Registro de gestión de energía
+#define ACCEL_XOUT_H 0x3B       // Registro de acelerómetro (X alto)
+#define GYRO_XOUT_H  0x43       // Registro de giroscopio (X alto)
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -64,56 +67,81 @@ static void MX_I2C1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-// Inicializa el MPU6050
+// Enviar datos por USB
 void MPU6050_Init(void) {
-    uint8_t check;
     uint8_t data;
 
-    // Verificar el ID del sensor
-    HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, WHO_AM_I_REG, 1, &check, 1, HAL_MAX_DELAY);
-    if (check == 0x68) {  // Valor esperado
-        // Despertar el MPU6050 (por defecto está en modo sleep)
-        data = 0;
-        HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, PWR_MGMT_1, 1, &data, 1, HAL_MAX_DELAY);
+    // Verifica el WHO_AM_I para asegurarte de que el MPU6050 está presente
+    HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, WHO_AM_I_REG, 1, &data, 1, HAL_MAX_DELAY);
+    if (data != 0x68) {
+        while (1) {
+            // Error: MPU6050 no detectado
+        }
     }
+
+    // Salir del modo de suspensión
+    data = 0x00;
+    HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, PWR_MGMT_1_REG, 1, &data, 1, HAL_MAX_DELAY);
 }
 
-// Leer valores del acelerómetro
-void MPU6050_Read_Accel(int16_t* Accel_X, int16_t* Accel_Y, int16_t* Accel_Z) {
-    uint8_t Rec_Data[6];
+void MPU6050_ReadAccel(int16_t *accel) {
+    uint8_t buffer[6];
 
     // Leer registros de acelerómetro
-    HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, ACCEL_XOUT_H, 1, Rec_Data, 6, HAL_MAX_DELAY);
+    HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, ACCEL_XOUT_H, 1, buffer, 6, HAL_MAX_DELAY);
 
-    // Convertir los datos
-    *Accel_X = (int16_t)(Rec_Data[0] << 8 | Rec_Data[1]);
-    *Accel_Y = (int16_t)(Rec_Data[2] << 8 | Rec_Data[3]);
-    *Accel_Z = (int16_t)(Rec_Data[4] << 8 | Rec_Data[5]);
+    // Convertir datos a valores de 16 bits
+    accel[0] = (int16_t)(buffer[0] << 8 | buffer[1]); // X
+    accel[1] = (int16_t)(buffer[2] << 8 | buffer[3]); // Y
+    accel[2] = (int16_t)(buffer[4] << 8 | buffer[5]); // Z
 }
 
-// Leer valores del giroscopio
-void MPU6050_Read_Gyro(int16_t* Gyro_X, int16_t* Gyro_Y, int16_t* Gyro_Z) {
-    uint8_t Rec_Data[6];
+void MPU6050_ReadGyro(int16_t *gyro) {
+    uint8_t buffer[6];
 
     // Leer registros de giroscopio
-    HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, GYRO_XOUT_H, 1, Rec_Data, 6, HAL_MAX_DELAY);
+    HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, GYRO_XOUT_H, 1, buffer, 6, HAL_MAX_DELAY);
 
-    // Convertir los datos
-    *Gyro_X = (int16_t)(Rec_Data[0] << 8 | Rec_Data[1]);
-    *Gyro_Y = (int16_t)(Rec_Data[2] << 8 | Rec_Data[3]);
-    *Gyro_Z = (int16_t)(Rec_Data[4] << 8 | Rec_Data[5]);
+    // Convertir datos a valores de 16 bits
+    gyro[0] = (int16_t)(buffer[0] << 8 | buffer[1]); // X
+    gyro[1] = (int16_t)(buffer[2] << 8 | buffer[3]); // Y
+    gyro[2] = (int16_t)(buffer[4] << 8 | buffer[5]); // Z
 }
 
-// Función para enviar datos por USB CDC
-void USB_Send_Data(const char *data) {
-    uint16_t len = strlen(data);
-    CDC_Transmit_FS((uint8_t*)data, len);
+void CalibrateGyro(int16_t *gyro_bias) {
+    int16_t gyro[3];
+    int32_t gyro_sum[3] = {0, 0, 0};
+    const int num_samples = 100;
+
+    // Toma múltiples lecturas en reposo
+    for (int i = 0; i < num_samples; i++) {
+        MPU6050_ReadGyro(gyro);
+        gyro_sum[0] += gyro[0];
+        gyro_sum[1] += gyro[1];
+        gyro_sum[2] += gyro[2];
+        HAL_Delay(10); // Espera entre lecturas
+    }
+
+    // Calcula el promedio
+    gyro_bias[0] = gyro_sum[0] / num_samples;
+    gyro_bias[1] = gyro_sum[1] / num_samples;
+    gyro_bias[2] = gyro_sum[2] / num_samples;
+
+    // Enviar datos de calibración por Bluetooth
+    char buffer[128];
+    snprintf(buffer, sizeof(buffer),
+             "Gyro Bias: X=%d, Y=%d, Z=%d\r\n",
+             gyro_bias[0], gyro_bias[1], gyro_bias[2]);
+    Send_Data_USB(buffer);
+}
+void Send_Data_USB(const char *data) {
+    CDC_Transmit_FS((uint8_t *)data, strlen(data));
 }
 /* USER CODE END 0 */
 
 /**
   * @brief  The application entry point.
-  * @retval int
+  * @retval intv
   */
 int main(void)
 {
@@ -143,11 +171,14 @@ int main(void)
   MX_I2C1_Init();
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
-  // Inicializar el MPU6050
+
   MPU6050_Init();
-  int16_t Accel_X, Accel_Y, Accel_Z;
-  int16_t Gyro_X, Gyro_Y, Gyro_Z;
-  char buffer[100];
+
+  int16_t accel[3], gyro[3], gyro_bias[3];
+  char buffer[128];
+  float angle_acc, angle_gyro = 0, angle_fused = 0;
+  const float dt = 0.01; // Intervalo de tiempo (10 ms)
+  const float alpha = 0.98; // Constante del filtro complementario
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -155,16 +186,28 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-      // Leer datos del acelerómetro y giroscopio
-      MPU6050_Read_Accel(&Accel_X, &Accel_Y, &Accel_Z);
-      MPU6050_Read_Gyro(&Gyro_X, &Gyro_Y, &Gyro_Z);
+      MPU6050_ReadAccel(accel);
+      MPU6050_ReadGyro(gyro);
 
-      // Formatear los datos y enviarlos por USB
-      snprintf(buffer, sizeof(buffer), "Accel: X=%d Y=%d Z=%d | Gyro: X=%d Y=%d Z=%d\r\n",
-               Accel_X, Accel_Y, Accel_Z, Gyro_X, Gyro_Y, Gyro_Z);
-      USB_Send_Data(buffer);
+      // Calcular el ángulo del acelerómetro (basado en la inclinación)
+      angle_acc = atan2((float)accel[1], (float)accel[2]) * (180.0 / M_PI);
 
-      HAL_Delay(500);
+      // Corregir el sesgo del giroscopio y calcular el cambio de ángulo
+      gyro[0] -= gyro_bias[0]; // Usamos solo el eje X para el giro en este caso
+      angle_gyro += ((float)gyro[0] / 131.0) * dt; // 131.0 es la sensibilidad del giroscopio en dps
+
+      // Fusión del ángulo usando el filtro complementario
+      angle_fused = alpha * (angle_fused + ((float)gyro[0] / 131.0) * dt) + (1 - alpha) * angle_acc;
+
+      // Formatea los datos en un buffer
+      snprintf(buffer, sizeof(buffer),
+               "Accel Angle: %.2f | Gyro Angle: %.2f | Fused Angle: %.2f\r\n",
+               angle_acc, angle_gyro, angle_fused);
+
+      // Enviar los datos por Bluetooth
+      Send_Data_USB(buffer);
+
+      HAL_Delay(10); // Espera 10 ms
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */

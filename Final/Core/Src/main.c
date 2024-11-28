@@ -30,13 +30,13 @@
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 #define QMC5883L_ADDR        (0x0D << 1)
-#define Kp                   3
+#define Kp                   4
 #define Ki                   0.01
 #define MIN_PWM              350
 #define CENTER_PWM           500
 #define MAX_PWM              650
 #define MAX_SPEED            100
-#define MIN_SPEED            0
+#define MIN_SPEED            25
 #define CALIBRATION_TIME     10000 // ms
 #define ENCODER_PPR          673
 #define TIMER_PERIOD         65535
@@ -67,8 +67,7 @@ uint16_t posicion = 0;
 char mi_string[15];
 uint8_t calibrara = 0;
 int16_t set_point;
-int32_t target_pulses = 15295;
-int16_t timer_counter, last_timer;
+uint16_t timer_counter, last_timer;
 float rpm;
 /* USER CODE END PD */
 
@@ -187,9 +186,12 @@ float getElapsedTime() {
     return elapsed;
 }
 // Función para calcular y aplicar el control PI
+// Función para calcular y aplicar el control PI
 void PIControl(float current_angle, float set_point) {
-    // Calcula el error
+    // Calcula el error considerando la circularidad
     float error = set_point - current_angle;
+    if (error > 180) error -= 360;
+    if (error < -180) error += 360;
 
     // Tiempo transcurrido
     float dt = getElapsedTime();
@@ -209,6 +211,23 @@ void PIControl(float current_angle, float set_point) {
 
     // Enviar el valor PWM al servo
     __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, pwm_value);
+}
+void PIControlVelocidad(uint16_t encoder, uint16_t final) {
+    // Calcula el error considerando la circularidad
+    float error_v = final - encoder;
+
+    // Calcula el ajuste PI
+    float adjustment = (0.01 * error_v);
+
+    // Calcula el nuevo valor PWM
+    int vel = (int)adjustment;
+
+    // Limita el valor PWM al rango permitido
+    if (vel < MIN_SPEED) vel = MIN_SPEED;
+    if (vel > MAX_SPEED) vel = MAX_SPEED;
+
+    // Enviar el valor PWM al servo
+    Motor_SetSpeed(vel);
 }
 /* USER CODE END 0 */
 
@@ -262,7 +281,7 @@ int main(void)
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, 1);
   HAL_Delay(5000);
   Motor_forward();
-  Motor_SetSpeed(30);
+  Motor_SetSpeed(25);
   QMC5883L_Read(&x, &y, &z, &angle);
   set_point = angle;
   /* USER CODE END 2 */
@@ -275,49 +294,71 @@ int main(void)
 	  QMC5883L_Read(&x, &y, &z, &angle);
 	  timer_counter = __HAL_TIM_GET_COUNTER(&htim3);
 	  HAL_Delay(10); // Tiempo de actualización (10 ms)
-	  snprintf(buffer, sizeof(buffer), "x: %d, y: %d, z: %d, angle: %.2f\r\n", x, y, z, angle);
+	  snprintf(buffer, sizeof(buffer), "Timer_Counter %d, Set_Point: %d, angle: %.2f\r\n", timer_counter, set_point, angle);
 	  HAL_UART_Transmit(&huart1, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
-	  if (timer_counter < 14086) {
-	      PIControl(angle, set_point);
+	  if (timer_counter < 7450) {
+	      PIControl(angle, set_point); //Sp 117 primer check
+	      PIControlVelocidad(timer_counter, 7450);
 	      Motor_forward(); // Ajusta el servo con el controlador PI
 	  }
-	  else if (timer_counter >= 14086 && timer_counter < 28172) {
+	  else if (timer_counter >= 7450 && timer_counter < 15400) {
 
 	      if (delay_flag_1 == 0) {
 	    	  stop();
 	          HAL_Delay(5000); // Retraso de 5 segundos
 	          delay_flag_1 = 1; // Asegura que el retraso ocurra solo la primera vez
+	          set_point += 90; //SP 212
 	      }
-
+	      if (set_point > 360) {
+	      	          set_point -= 360;
+	      	      } else if (set_point < 0) {
+	      	          set_point += 360;
+	      	      }
+	      PIControlVelocidad(timer_counter, 15400);
 	      Motor_forward(); // Ajusta el servo con el controlador PI
-	      PIControl(angle , set_point+100);
+	      PIControl(angle , set_point);
 	  }
-	  else if (timer_counter >= 28172 && timer_counter < 42258) {
+	  else if (timer_counter >= 15400 && timer_counter < 24200) {
 
 	      if (delay_flag_2 == 0) {
 	    	  stop();
 	          HAL_Delay(5000); // Retraso de 5 segundos
 	          delay_flag_2 = 1; // Asegura que el retraso ocurra solo la primera vez
+	          set_point += 90;//SP 307
 	      }
-
+	      if (set_point > 360) {
+	      	          set_point -= 360;
+	      	      } else if (set_point < 0) {
+	      	          set_point += 360;
+	      	      }
+	      PIControlVelocidad(timer_counter, 24200);
 	      Motor_forward(); // Ajusta el servo con el controlador PI
-	      PIControl(angle, set_point+200);
+	      PIControl(angle , set_point);
 	  }
-	  else if (timer_counter >= 42258 && timer_counter < 56344) {
-
+	  else if (timer_counter >= 24200 && timer_counter < 32300) {
 	      if (delay_flag_3 == 0) {
-	    	  stop();
+	          stop();
 	          HAL_Delay(5000); // Retraso de 5 segundos
 	          delay_flag_3 = 1; // Asegura que el retraso ocurra solo la primera vez
+	          set_point += 87; // Ajusta el set_point
 	      }
 
+	      // Normaliza el set_point al rango 0-360
+	      if (set_point > 360) {
+	          set_point -= 360;
+	      } else if (set_point < 0) {
+	          set_point += 360;
+	      }
+	      PIControlVelocidad(timer_counter, 32300);
 	      Motor_forward(); // Ajusta el servo con el controlador PI
-	      PIControl(angle, set_point+300);
+	      PIControl(angle, set_point);
 	  }
+
 	  else {
 	      delay_flag_1 = 0; // Reinicia la bandera para el primer rango
 	      delay_flag_2 = 0; // Reinicia la bandera para el segundo rango
 	      delay_flag_3 = 0; // Reinicia la bandera para el tercer rango
+	      stop();
 	  }
 
     /* USER CODE BEGIN 3 */

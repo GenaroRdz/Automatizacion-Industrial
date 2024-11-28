@@ -1,7 +1,7 @@
-02:20:00 **** Incremental Build of configuration Debug for project Final ****
+04:30:25 **** Incremental Build of configuration Debug for project Final ****
 make -j20 all 
 arm-none-eabi-size  Final.elf 
    text	   data	    bss	    dec	    hex	filename
-  38632	    468	   2244	  41344	   a180	Final.elf
+  39256	    468	   2244	  41968	   a3f0	Final.elf
 Finished building: default.size.stdout
  
