@@ -62,9 +62,30 @@ static void MX_TIM3_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-uint16_t timer_counter;
-float vueltas;
 char buffer[64];
+void Motor_forward() {
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, 1);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, 0);
+}
+void Motor_backward() {
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, 0);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, 1);
+}
+void stop(){
+    // Dirección hacia adelante
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, 0);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, 0);
+}
+// Función para configurar la velocidad del motor (PWM)
+void Motor_SetSpeed(uint8_t speed) {
+    if (speed > 100) speed = 100; // Limita el valor máximo a 100%
+    if (speed < 0) speed = 0; // Limita el valor minimo a 0%
+    // Calcula el valor de comparación para el duty cycle
+    uint32_t pulse = (speed * __HAL_TIM_GET_AUTORELOAD(&htim2)) / 100;
+
+    // Establece el duty cycle
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, pulse);
+}
 /* USER CODE END 0 */
 
 /**
@@ -99,10 +120,16 @@ int main(void)
   MX_TIM2_Init();
   MX_USB_DEVICE_Init();
   MX_TIM3_Init();
-  HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
-
   /* USER CODE BEGIN 2 */
-
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2); // Velocidad de motor
+  HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL); // Inicializa encoder
+  uint32_t timer_counter, last_time = 0;
+  uint32_t delta_t = 1000;
+  float rpm;
+  char buffer[64];
+  uint8_t acum = 20;
+  Motor_forward();
+  Motor_SetSpeed(20);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -110,22 +137,28 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-		timer_counter = __HAL_TIM_GET_COUNTER(&htim3);
-	    // Convierte el valor del encoder a texto
-	    sprintf(buffer, "Encoder Value: %ld\r\n", timer_counter);
-	    // Envía el texto por USB
-	    CDC_Transmit_FS((uint8_t*)buffer, strlen(buffer));
-		vueltas = (timer_counter/673)*0.07*M_PI;
-		sprintf(buffer, "Vueltas: %f\r\n", vueltas);
-		CDC_Transmit_FS((uint8_t*)buffer, strlen(buffer));
-		if (timer_counter > 2000) {
-		    sprintf(buffer, "LLegue: %u\r\n", timer_counter);
-		} else {
-		    sprintf(buffer, "No llegue: %u\r\n", timer_counter);
-		}
-		CDC_Transmit_FS((uint8_t*)buffer, strlen(buffer));
 
-		HAL_Delay(500); // 100 ms
+      timer_counter = __HAL_TIM_GET_COUNTER(&htim3); // Lee el contador del encoder
+
+      // Calcula RPM
+      rpm = (timer_counter * 60.0f) / 673.0f; // 673 = Pulsos por revolución del encoder
+      __HAL_TIM_SET_COUNTER(&htim3, 0); // Resetea el contador del encoder
+
+      // Prepara el mensaje para imprimir
+      snprintf(buffer, sizeof(buffer), "Velocidad: %d, RPM: %.2f\r\n", acum, rpm);
+      CDC_Transmit_FS((uint8_t *)buffer, strlen(buffer)); // Transmite el mensaje por USB
+      // Verifica si ha transcurrido el tiempo de muestreo
+      if (HAL_GetTick() - last_time >= delta_t) {
+          // Incrementa la velocidad acumulada
+          acum += 5;
+          if (acum > 100) {
+              acum = 100; // Limita la velocidad máxima
+          }
+          Motor_SetSpeed(acum); // Ajusta la velocidad del motor
+          last_time = HAL_GetTick(); // Actualiza el tiempo
+      }
+
+      HAL_Delay(10); // Retraso para evitar sobrecargar el CPU
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -188,28 +221,29 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 0 */
 
-  TIM_Encoder_InitTypeDef sConfig = {0};
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
 
   /* USER CODE BEGIN TIM2_Init 1 */
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 0;
+  htim2.Init.Prescaler = 72-1;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 4294967295;
+  htim2.Init.Period = 20000;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  sConfig.EncoderMode = TIM_ENCODERMODE_TI12;
-  sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
-  sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
-  sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
-  sConfig.IC1Filter = 0;
-  sConfig.IC2Polarity = TIM_ICPOLARITY_RISING;
-  sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
-  sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
-  sConfig.IC2Filter = 0;
-  if (HAL_TIM_Encoder_Init(&htim2, &sConfig) != HAL_OK)
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
   {
     Error_Handler();
   }
@@ -219,8 +253,17 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE BEGIN TIM2_Init 2 */
   /* USER CODE END TIM2_Init 2 */
+  HAL_TIM_MspPostInit(&htim2);
 
 }
 
@@ -280,12 +323,24 @@ static void MX_TIM3_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
 /* USER CODE BEGIN MX_GPIO_Init_1 */
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4|GPIO_PIN_5, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : PB4 PB5 */
+  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */

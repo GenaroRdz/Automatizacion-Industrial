@@ -8,6 +8,7 @@
 		<item key="isRegEx" value="false"/>
 		<item key="selection" value="error"/>
 		<list key="findhistory">
+			<item value="CFC"/>
 			<item value="error"/>
 			<item value="Send_Data_BT"/>
 			<item value="hi2c1"/>
@@ -22,7 +23,6 @@
 			<item value="MPI"/>
 			<item value="pi"/>
 			<item value="TIM3_Init"/>
-			<item value="HAL_MAX_DELAY"/>
 		</list>
 		<list key="replacehistory">
 			<item value="Send_Data_USB"/>

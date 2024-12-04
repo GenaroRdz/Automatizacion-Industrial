@@ -324,7 +324,7 @@ int main(void)
 	    	  stop();
 	          HAL_Delay(5000); // Retraso de 5 segundos
 	          delay_flag_2 = 1; // Asegura que el retraso ocurra solo la primera vez
-	          set_point += 90;//SP 307
+	          set_point += 89;//SP 307
 	      }
 	      if (set_point > 360) {
 	      	          set_point -= 360;

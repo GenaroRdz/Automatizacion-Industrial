@@ -2172,11 +2172,11 @@ int main(void)
  800168c:	4b2b      	ldr	r3, [pc, #172]	@ (800173c <main+0x2f4>)
  800168e:	2201      	movs	r2, #1
  8001690:	701a      	strb	r2, [r3, #0]
-	          set_point += 90;//SP 307
+	          set_point += 89;//SP 307
  8001692:	4b26      	ldr	r3, [pc, #152]	@ (800172c <main+0x2e4>)
  8001694:	f9b3 3000 	ldrsh.w	r3, [r3]
  8001698:	b29b      	uxth	r3, r3
- 800169a:	335a      	adds	r3, #90	@ 0x5a
+ 800169a:	3359      	adds	r3, #89	@ 0x59
  800169c:	b29b      	uxth	r3, r3
  800169e:	b21a      	sxth	r2, r3
  80016a0:	4b22      	ldr	r3, [pc, #136]	@ (800172c <main+0x2e4>)
